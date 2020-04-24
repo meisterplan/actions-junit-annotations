@@ -28,7 +28,7 @@ import { Octokit } from '@octokit/rest';
 
         for await (const file of globber.globGenerator()) {
             const data = await fs.promises.readFile(file);
-            const json = JSON.parse(parser.toJson(data));
+            const json = JSON.parse(parser.toJson(data.toString()));
             if (json.testsuite) {
                 const testsuite = json.testsuite;
 

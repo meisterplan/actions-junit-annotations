@@ -2,10 +2,11 @@
   "name": "actions-junit-annotations",
   "version": "1.0.0",
   "description": "Annotate JUnit XML build results on GitHub Actions build",
-  "main": "index.ts",
+  "main": "src/index.ts",
   "scripts": {
-    "build": "tsc index.ts",
-    "lint": "eslint --ext .tsx,.ts ."
+    "lint": "eslint --ext .tsx,.ts src",
+    "build": "tsc src/index.ts",
+    "ncc": "ncc build"
   },
   "repository": {
     "type": "git",
@@ -22,6 +23,7 @@
     "@types/xml2json": "^0.11.0",
     "@typescript-eslint/eslint-plugin": "^2.29.0",
     "@typescript-eslint/parser": "^2.29.0",
+    "@zeit/ncc": "^0.22.1",
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.11.0",
     "eslint-plugin-prettier": "^3.1.3",
