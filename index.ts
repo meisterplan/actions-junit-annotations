@@ -31,6 +31,7 @@ import { Octokit } from '@octokit/rest';
             const json = JSON.parse(parser.toJson(data));
             if (json.testsuite) {
                 const testsuite = json.testsuite;
+
                 testDuration += Number(testsuite.time);
                 numTests += Number(testsuite.tests);
                 numErrored += Number(testsuite.errors);
@@ -41,36 +42,41 @@ import { Octokit } from '@octokit/rest';
                     testsuite.testcase = [testsuite.testcase];
                 }
 
-                if (Array.isArray(testsuite.testcase)) {
-                    for (const testcase of testsuite.testcase) {
-                        if (testcase.failure) {
-                            const annotations: Octokit.ChecksUpdateParamsOutputAnnotations[] = [];
-                            const klass = testcase.classname.replace(/$.*/g, '').replace(/\./g, '/');
-                            const path = `${testSrcPath}${klass}.java`;
+                for (const testcase of testsuite.testcase) {
+                    if (testcase.failure) {
+                        const annotations: Octokit.ChecksUpdateParamsOutputAnnotations[] = [];
+                        const className = testcase.classname || testsuite.classname;
+                        const testName = testcase.name.replace('It: ', '');
+                        // the replace makes it work with kotest's DescribeSpec
 
-                            const file = await fs.promises.readFile(path, { encoding: 'utf-8' });
-                            //TODO: make this better won't deal with methods with arguments etc
-                            let line = 0;
-                            const lines = file.split('\n');
-                            for (let i = 0; i < lines.length; i++) {
-                                if (lines[i].indexOf(testcase.name) >= 0) {
-                                    line = i;
-                                    break;
-                                }
+                        const testFileNameSuspect = className.replace(/$.*/g, '').replace(/\./g, '/') + '*';
+                        const testFileSuspectGlob = await glob.create(testSrcPath + testFileNameSuspect);
+                        const testFileSuspects = await testFileSuspectGlob.glob();
+
+                        let testFileLine = 0;
+                        let testFilePath = '';
+                        if (testFileSuspects.length == 1) {
+                            testFilePath = testFileSuspects[0];
+
+                            const testFileContents = await fs.promises.readFile(testFilePath, { encoding: 'utf-8' });
+                            const testPosition = testFileContents.indexOf(testName);
+                            if (testPosition >= 0) {
+                                const contentBefore = testFileContents.substring(0, testPosition);
+                                const contentBeforeWithoutNewLines = contentBefore.replace('/n', '');
+                                testFileLine = 1 + (contentBefore.length - contentBeforeWithoutNewLines.length);
                             }
-
-                            annotations.push({
-                                path: path,
-                                start_line: line,
-                                end_line: line,
-                                start_column: 0,
-                                end_column: 0,
-                                annotation_level: 'failure',
-                                message: `Junit test ${testcase.name} failed ${testcase.failure.message}`,
-                            });
-
-                            collectedAnnotations = collectedAnnotations.concat(annotations);
                         }
+
+                        annotations.push({
+                            path: testFilePath,
+                            start_line: testFileLine,
+                            end_line: testFileLine,
+                            annotation_level: 'failure',
+                            message: `JUnit ${testsuite.name}::${testcase.name} failed`,
+                            raw_details: testcase.failure.message,
+                        });
+
+                        collectedAnnotations = collectedAnnotations.concat(annotations);
                     }
                 }
             }
@@ -86,12 +92,13 @@ import { Octokit } from '@octokit/rest';
         const checkRunId = res.data.check_runs.filter((check) => check.name === 'build')[0].id;
 
         const annotationLevel = numFailed + numErrored > 0 ? 'failure' : 'notice';
+        const summaryMessage = `JUnit Results for ${numTests} tests in ${testDuration} seconds: ${numErrored} error(s), ${numFailed} fail(s), ${numSkipped} skip(s)`;
         const summaryAnnotation: Octokit.ChecksUpdateParamsOutputAnnotations = {
             path: testSrcPath,
             start_line: 0,
             end_line: 0,
             annotation_level: annotationLevel,
-            message: `Junit Results ran ${numTests} in ${testDuration} seconds ${numErrored} Errored, ${numFailed} Failed, ${numSkipped} Skipped`,
+            message: summaryMessage,
         };
 
         collectedAnnotations.length = Math.min(collectedAnnotations.length, maxFailures);
@@ -99,8 +106,8 @@ import { Octokit } from '@octokit/rest';
             ...github.context.repo,
             check_run_id: checkRunId,
             output: {
-                title: 'Junit Results',
-                summary: `Num passed etc`,
+                title: 'JUnit Results',
+                summary: summaryMessage,
                 annotations: [summaryAnnotation, ...collectedAnnotations],
             },
         };

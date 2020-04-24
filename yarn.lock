@@ -169,6 +169,11 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-13.7.7.tgz#1628e6461ba8cc9b53196dfeaeec7b07fa6eea99"
   integrity sha512-Uo4chgKbnPNlxQwoFmYIwctkQVkMMmsAoGGU4JKwLuvBefF0pCq4FybNSnfkfRCpC7ZW7kttcC/TrRtAJsvGtg==
 
+"@types/xml2json@^0.11.0":
+  version "0.11.0"
+  resolved "https://registry.yarnpkg.com/@types/xml2json/-/xml2json-0.11.0.tgz#f7916fa6add0b607ad0d5a877460044d292c99ba"
+  integrity sha512-7q/z45tcMKEPlbCoV5EGPdFLrHst9m3w/sy1tdCvfoR2gI78UgzfhML2jemKAuE2bY2/ZE7f0qzWM0LZ97M54Q==
+
 "@typescript-eslint/eslint-plugin@^2.29.0":
   version "2.29.0"
   resolved "https://registry.yarnpkg.com/@typescript-eslint/eslint-plugin/-/eslint-plugin-2.29.0.tgz#c9efab7624e3dd6d144a0e4577a541d1bd42c2ac"

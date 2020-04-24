@@ -67,12 +67,12 @@ var glob = require("@actions/glob");
 var parser = require("xml2json");
 var fs = require("fs");
 (function () { return __awaiter(void 0, void 0, void 0, function () {
-    var accessToken, projectPath, junitSubPath, testSrcSubPath, maxFailures, testSrcPath, globber, numTests, numSkipped, numFailed, numErrored, testDuration, collectedAnnotations, _a, _b, file, data, json, testsuite, _i, _c, testcase, annotations, klass, path, file_1, line, lines, i, e_1_1, octokit, listForRefRequest, res, checkRunId, annotationLevel, summaryAnnotation, checkUpdate, error_1;
+    var accessToken, projectPath, junitSubPath, testSrcSubPath, maxFailures, testSrcPath, globber, numTests, numSkipped, numFailed, numErrored, testDuration, collectedAnnotations, _a, _b, file, data, json, testsuite, _i, _c, testcase, annotations, className, testName, testFileNameSuspect, testFileSuspectGlob, testFileSuspects, testFileLine, testFilePath, testFileContents, testPosition, contentBefore, contentBeforeWithoutNewLines, e_1_1, octokit, listForRefRequest, res, checkRunId, annotationLevel, summaryMessage, summaryAnnotation, checkUpdate, error_1;
     var e_1, _d;
     return __generator(this, function (_e) {
         switch (_e.label) {
             case 0:
-                _e.trys.push([0, 20, , 21]);
+                _e.trys.push([0, 23, , 24]);
                 accessToken = core.getInput('access-token');
                 projectPath = core.getInput('projectPath');
                 junitSubPath = core.getInput('junitSubPath');
@@ -90,18 +90,18 @@ var fs = require("fs");
                 collectedAnnotations = [];
                 _e.label = 2;
             case 2:
-                _e.trys.push([2, 11, 12, 17]);
+                _e.trys.push([2, 14, 15, 20]);
                 _a = __asyncValues(globber.globGenerator());
                 _e.label = 3;
             case 3: return [4 /*yield*/, _a.next()];
             case 4:
-                if (!(_b = _e.sent(), !_b.done)) return [3 /*break*/, 10];
+                if (!(_b = _e.sent(), !_b.done)) return [3 /*break*/, 13];
                 file = _b.value;
                 return [4 /*yield*/, fs.promises.readFile(file)];
             case 5:
                 data = _e.sent();
                 json = JSON.parse(parser.toJson(data));
-                if (!json.testsuite) return [3 /*break*/, 9];
+                if (!json.testsuite) return [3 /*break*/, 12];
                 testsuite = json.testsuite;
                 testDuration += Number(testsuite.time);
                 numTests += Number(testsuite.tests);
@@ -111,89 +111,99 @@ var fs = require("fs");
                 if (!Array.isArray(testsuite.testcase)) {
                     testsuite.testcase = [testsuite.testcase];
                 }
-                if (!Array.isArray(testsuite.testcase)) return [3 /*break*/, 9];
                 _i = 0, _c = testsuite.testcase;
                 _e.label = 6;
             case 6:
-                if (!(_i < _c.length)) return [3 /*break*/, 9];
+                if (!(_i < _c.length)) return [3 /*break*/, 12];
                 testcase = _c[_i];
-                if (!testcase.failure) return [3 /*break*/, 8];
+                if (!testcase.failure) return [3 /*break*/, 11];
                 annotations = [];
-                klass = testcase.classname.replace(/$.*/g, '').replace(/\./g, '/');
-                path = "" + testSrcPath + klass + ".java";
-                return [4 /*yield*/, fs.promises.readFile(path, { encoding: 'utf-8' })];
+                className = testcase.classname || testsuite.classname;
+                testName = testcase.name.replace('It: ', '');
+                testFileNameSuspect = className.replace(/$.*/g, '').replace(/\./g, '/') + '*';
+                return [4 /*yield*/, glob.create(testSrcPath + testFileNameSuspect)];
             case 7:
-                file_1 = _e.sent();
-                line = 0;
-                lines = file_1.split('\n');
-                for (i = 0; i < lines.length; i++) {
-                    if (lines[i].indexOf(testcase.name) >= 0) {
-                        line = i;
-                        break;
-                    }
+                testFileSuspectGlob = _e.sent();
+                return [4 /*yield*/, testFileSuspectGlob.glob()];
+            case 8:
+                testFileSuspects = _e.sent();
+                testFileLine = 0;
+                testFilePath = '';
+                if (!(testFileSuspects.length == 1)) return [3 /*break*/, 10];
+                testFilePath = testFileSuspects[0];
+                return [4 /*yield*/, fs.promises.readFile(testFilePath, { encoding: 'utf-8' })];
+            case 9:
+                testFileContents = _e.sent();
+                testPosition = testFileContents.indexOf(testName);
+                if (testPosition >= 0) {
+                    contentBefore = testFileContents.substring(0, testPosition);
+                    contentBeforeWithoutNewLines = contentBefore.replace('/n', '');
+                    testFileLine = 1 + (contentBefore.length - contentBeforeWithoutNewLines.length);
                 }
+                _e.label = 10;
+            case 10:
                 annotations.push({
-                    path: path,
-                    start_line: line,
-                    end_line: line,
-                    start_column: 0,
-                    end_column: 0,
+                    path: testFilePath,
+                    start_line: testFileLine,
+                    end_line: testFileLine,
                     annotation_level: 'failure',
-                    message: "Junit test " + testcase.name + " failed " + testcase.failure.message
+                    message: "JUnit " + testsuite.name + "::" + testcase.name + " failed",
+                    raw_details: testcase.failure.message
                 });
                 collectedAnnotations = collectedAnnotations.concat(annotations);
-                _e.label = 8;
-            case 8:
+                _e.label = 11;
+            case 11:
                 _i++;
                 return [3 /*break*/, 6];
-            case 9: return [3 /*break*/, 3];
-            case 10: return [3 /*break*/, 17];
-            case 11:
+            case 12: return [3 /*break*/, 3];
+            case 13: return [3 /*break*/, 20];
+            case 14:
                 e_1_1 = _e.sent();
                 e_1 = { error: e_1_1 };
-                return [3 /*break*/, 17];
-            case 12:
-                _e.trys.push([12, , 15, 16]);
-                if (!(_b && !_b.done && (_d = _a["return"]))) return [3 /*break*/, 14];
-                return [4 /*yield*/, _d.call(_a)];
-            case 13:
-                _e.sent();
-                _e.label = 14;
-            case 14: return [3 /*break*/, 16];
+                return [3 /*break*/, 20];
             case 15:
+                _e.trys.push([15, , 18, 19]);
+                if (!(_b && !_b.done && (_d = _a["return"]))) return [3 /*break*/, 17];
+                return [4 /*yield*/, _d.call(_a)];
+            case 16:
+                _e.sent();
+                _e.label = 17;
+            case 17: return [3 /*break*/, 19];
+            case 18:
                 if (e_1) throw e_1.error;
                 return [7 /*endfinally*/];
-            case 16: return [7 /*endfinally*/];
-            case 17:
+            case 19: return [7 /*endfinally*/];
+            case 20:
                 octokit = new github.GitHub(accessToken);
                 listForRefRequest = __assign(__assign({}, github.context.repo), { ref: github.context.sha });
                 return [4 /*yield*/, octokit.checks.listForRef(listForRefRequest)];
-            case 18:
+            case 21:
                 res = _e.sent();
                 checkRunId = res.data.check_runs.filter(function (check) { return check.name === 'build'; })[0].id;
                 annotationLevel = numFailed + numErrored > 0 ? 'failure' : 'notice';
+                summaryMessage = "JUnit Results for " + numTests + " tests in " + testDuration + " seconds: " + numErrored + " error(s), " + numFailed + " fail(s), " + numSkipped + " skip(s)";
                 summaryAnnotation = {
                     path: testSrcPath,
                     start_line: 0,
                     end_line: 0,
                     annotation_level: annotationLevel,
-                    message: "Junit Results ran " + numTests + " in " + testDuration + " seconds " + numErrored + " Errored, " + numFailed + " Failed, " + numSkipped + " Skipped"
+                    message: summaryMessage
                 };
                 collectedAnnotations.length = Math.min(collectedAnnotations.length, maxFailures);
                 checkUpdate = __assign(__assign({}, github.context.repo), { check_run_id: checkRunId, output: {
-                        title: 'Junit Results',
-                        summary: "Num passed etc",
+                        title: 'JUnit Results',
+                        summary: summaryMessage,
                         annotations: __spreadArrays([summaryAnnotation], collectedAnnotations)
                     } });
                 return [4 /*yield*/, octokit.checks.update(checkUpdate)];
-            case 19:
+            case 22:
                 _e.sent();
-                return [3 /*break*/, 21];
-            case 20:
+                return [3 /*break*/, 24];
+            case 23:
                 error_1 = _e.sent();
                 core.setFailed(error_1.message);
-                return [3 /*break*/, 21];
-            case 21: return [2 /*return*/];
+                return [3 /*break*/, 24];
+            case 24: return [2 /*return*/];
         }
     });
 }); })();

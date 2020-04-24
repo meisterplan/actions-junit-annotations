@@ -1,7 +1,7 @@
 # actions-junit-annotations
 Annotate JUnit XML build results on GitHub Actions build
 
-## Example
+## Minimal example
 ```
     - uses: meisterplan/actions-junit-annotations@master
       if: always()
