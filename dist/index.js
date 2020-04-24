@@ -10364,6 +10364,7 @@ const fs = __importStar(__webpack_require__(747));
         const junitSubPath = core.getInput('junitSubPath');
         const testSrcSubPath = core.getInput('testSrcSubPath');
         const maxFailures = Number(core.getInput('maxFailures'));
+        const annotateCheckName = core.getInput('annotateCheckName');
         const testSrcPath = projectPath + '/' + testSrcSubPath;
         const globber = await glob.create(projectPath + '/' + junitSubPath, { followSymbolicLinks: false });
         let numTests = 0;
@@ -10373,12 +10374,12 @@ const fs = __importStar(__webpack_require__(747));
         let testDuration = 0;
         let collectedAnnotations = [];
         for await (const file of globber.globGenerator()) {
-            core.info(`Analyzing $file`);
+            core.info(`Analyzing ${file}`);
             const data = await fs.promises.readFile(file);
             const json = JSON.parse(parser.toJson(data.toString()));
             if (json.testsuite) {
                 const testsuite = json.testsuite;
-                core.info(`* Analyzing test suite ${testsuite.name}`);
+                core.debug(`* Analyzing test suite ${testsuite.name}`);
                 testDuration += Number(testsuite.time);
                 numTests += Number(testsuite.tests);
                 numErrored += Number(testsuite.errors);
@@ -10389,7 +10390,7 @@ const fs = __importStar(__webpack_require__(747));
                 }
                 for (const testcase of testsuite.testcase) {
                     if (testcase.failure) {
-                        core.info(`** Analyzing test case ${testcase.name}`);
+                        core.debug(`** Analyzing failed test case ${testcase.name}`);
                         const annotations = [];
                         const className = testcase.classname || testsuite.classname || 'unknown';
                         const testName = (testcase.name || 'unknown').replace('It: ', '');
@@ -10422,8 +10423,6 @@ const fs = __importStar(__webpack_require__(747));
                 }
             }
         }
-        const octokit = new github.GitHub(accessToken);
-        const checkRunId = Number(process.env.GITHUB_RUN_ID);
         const annotationLevel = numFailed + numErrored > 0 ? 'failure' : 'notice';
         const summaryMessage = `JUnit Results for ${numTests} tests in ${testDuration} seconds: ${numErrored} error(s), ${numFailed} fail(s), ${numSkipped} skip(s)`;
         const summaryAnnotation = {
@@ -10434,17 +10433,29 @@ const fs = __importStar(__webpack_require__(747));
             message: summaryMessage,
         };
         core.info(summaryMessage);
+        const octokit = new github.GitHub(accessToken);
+        const listForRefRequest = {
+            ...github.context.repo,
+            ref: github.context.sha,
+        };
+        const checkRunsResponse = await octokit.checks.listForRef(listForRefRequest);
+        core.info(`Available check runs: ${checkRunsResponse.data.check_runs.join(',')}`);
+        const checkRun = checkRunsResponse.data.check_runs.find((checkRun) => checkRun.name.includes(annotateCheckName));
+        if (checkRun == undefined) {
+            core.error(`Did not find a check run for this sha that contains '${annotateCheckName}'.`);
+            return;
+        }
         collectedAnnotations.length = Math.min(collectedAnnotations.length, maxFailures);
         const checkUpdate = {
             ...github.context.repo,
-            check_run_id: checkRunId,
+            check_run_id: checkRun.id,
             output: {
                 title: 'JUnit Results',
                 summary: summaryMessage,
                 annotations: [summaryAnnotation, ...collectedAnnotations],
             },
         };
-        core.info(`Updating annotations of run ${checkRunId}`);
+        core.info(`Updating annotations of run ${checkRun.id}`);
         await octokit.checks.update(checkUpdate);
     }
     catch (error) {

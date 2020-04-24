@@ -19,6 +19,10 @@ inputs:
     description: 'Path to test source files inside project'
     required: true
     default: 'src/test/kotlin/'
+  annotateCheckName:
+    description: 'Partly matching name of check run to annotate'
+    required: true
+    default: 'test-server'
   maxFailures:
     description: 'Maximum amount of failed tests to include'
     required: true

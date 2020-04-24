@@ -9,5 +9,9 @@ Annotate JUnit XML build results on GitHub Actions build
         access-token: ${{ secrets.GITHUB_TOKEN }}
 ``` 
 
-**TODO** List all possible parameters
-   
+### Optional parameters
+- `projectPath`: Path to the server project to be analyzed, default `service/server`
+- `junitSubPath`: Glob path to JUnit XML files inside project, default `build/test-results/test/*.xml`
+- `testSrcSubPath`: Path to test source files inside project, default `src/test/kotlin/`
+- `maxFailures`: Maximum amount of failed tests to include, default 10
+- `annotateCheckName`: Part of the check run name that should be annotated, default `test-server`
