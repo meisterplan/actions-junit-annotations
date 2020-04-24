@@ -1,22 +1,19 @@
 {
-  "name": "junit-report-annotations-action",
+  "name": "actions-junit-annotations",
   "version": "1.0.0",
-  "description": "Create an annotation of the build information and also list first n failed tests as seporate annotations",
+  "description": "Annotate JUnit XML build results on GitHub Actions build",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ashley-taylor/junit-report-annotations-action.git"
+    "url": "git+https://github.com/meisterplan/actions-junit-annotations.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/ashley-taylor/junit-report-annotations-action/issues"
-  },
-  "homepage": "https://github.com/ashley-taylor/junit-report-annotations-action#readme",
+  "homepage": "https://github.com/meisterplan/actions-junit-annotations#readme",
   "dependencies": {
     "@actions/core": "^1.2.3",
     "@actions/github": "^2.1.1",
