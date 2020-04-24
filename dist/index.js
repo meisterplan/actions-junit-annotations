@@ -10388,8 +10388,8 @@ const fs = __importStar(__webpack_require__(747));
                 for (const testcase of testsuite.testcase) {
                     if (testcase.failure) {
                         const annotations = [];
-                        const className = testcase.classname || testsuite.classname;
-                        const testName = testcase.name.replace('It: ', '');
+                        const className = testcase.classname || testsuite.classname || 'unknown';
+                        const testName = (testcase.name || 'unknown').replace('It: ', '');
                         // the replace makes it work with kotest's DescribeSpec
                         const testFileNameSuspect = className.replace(/$.*/g, '').replace(/\./g, '/') + '*';
                         const testFileSuspectGlob = await glob.create(testSrcPath + testFileNameSuspect);
@@ -10420,12 +10420,7 @@ const fs = __importStar(__webpack_require__(747));
             }
         }
         const octokit = new github.GitHub(accessToken);
-        const listForRefRequest = {
-            ...github.context.repo,
-            ref: github.context.sha,
-        };
-        const res = await octokit.checks.listForRef(listForRefRequest);
-        const checkRunId = res.data.check_runs.filter((check) => check.name === 'build')[0].id;
+        const checkRunId = Number(process.env.GITHUB_RUN_ID);
         const annotationLevel = numFailed + numErrored > 0 ? 'failure' : 'notice';
         const summaryMessage = `JUnit Results for ${numTests} tests in ${testDuration} seconds: ${numErrored} error(s), ${numFailed} fail(s), ${numSkipped} skip(s)`;
         const summaryAnnotation = {
