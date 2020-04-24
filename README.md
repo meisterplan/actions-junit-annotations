@@ -1,11 +1,13 @@
-# junit-report-annotations-action
-Create an annotation of the build information and also list first n failed tests as seporate annotations
+# actions-junit-annotations
+Annotate JUnit XML build results on GitHub Actions build
 
 ## Example
 ```
-    - uses: ashley-taylor/junit-report-annotations-action@v1.0
+    - uses: meisterplan/actions-junit-annotations@master
       if: always()
       with:
         access-token: ${{ secrets.GITHUB_TOKEN }}
 ``` 
+
+**TODO** List all possible parameters
    
