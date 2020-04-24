@@ -27,10 +27,12 @@ import { Octokit } from '@octokit/rest';
         let collectedAnnotations: Octokit.ChecksUpdateParamsOutputAnnotations[] = [];
 
         for await (const file of globber.globGenerator()) {
+            core.info(`Analyzing $file`);
             const data = await fs.promises.readFile(file);
             const json = JSON.parse(parser.toJson(data.toString()));
             if (json.testsuite) {
                 const testsuite = json.testsuite;
+                core.info(`* Analyzing test suite ${testsuite.name}`);
 
                 testDuration += Number(testsuite.time);
                 numTests += Number(testsuite.tests);
@@ -44,6 +46,7 @@ import { Octokit } from '@octokit/rest';
 
                 for (const testcase of testsuite.testcase) {
                     if (testcase.failure) {
+                        core.info(`** Analyzing test case ${testcase.name}`);
                         const annotations: Octokit.ChecksUpdateParamsOutputAnnotations[] = [];
                         const className = testcase.classname || testsuite.classname || 'unknown';
                         const testName = (testcase.name || 'unknown').replace('It: ', '');
@@ -94,6 +97,7 @@ import { Octokit } from '@octokit/rest';
             annotation_level: annotationLevel,
             message: summaryMessage,
         };
+        core.info(summaryMessage);
 
         collectedAnnotations.length = Math.min(collectedAnnotations.length, maxFailures);
         const checkUpdate: Octokit.ChecksUpdateParams = {
@@ -105,6 +109,7 @@ import { Octokit } from '@octokit/rest';
                 annotations: [summaryAnnotation, ...collectedAnnotations],
             },
         };
+        core.info(`Updating annotations of run ${checkRunId}`);
         await octokit.checks.update(checkUpdate);
     } catch (error) {
         core.setFailed(error.message);

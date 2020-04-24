@@ -10373,10 +10373,12 @@ const fs = __importStar(__webpack_require__(747));
         let testDuration = 0;
         let collectedAnnotations = [];
         for await (const file of globber.globGenerator()) {
+            core.info(`Analyzing $file`);
             const data = await fs.promises.readFile(file);
             const json = JSON.parse(parser.toJson(data.toString()));
             if (json.testsuite) {
                 const testsuite = json.testsuite;
+                core.info(`* Analyzing test suite ${testsuite.name}`);
                 testDuration += Number(testsuite.time);
                 numTests += Number(testsuite.tests);
                 numErrored += Number(testsuite.errors);
@@ -10387,6 +10389,7 @@ const fs = __importStar(__webpack_require__(747));
                 }
                 for (const testcase of testsuite.testcase) {
                     if (testcase.failure) {
+                        core.info(`** Analyzing test case ${testcase.name}`);
                         const annotations = [];
                         const className = testcase.classname || testsuite.classname || 'unknown';
                         const testName = (testcase.name || 'unknown').replace('It: ', '');
@@ -10430,6 +10433,7 @@ const fs = __importStar(__webpack_require__(747));
             annotation_level: annotationLevel,
             message: summaryMessage,
         };
+        core.info(summaryMessage);
         collectedAnnotations.length = Math.min(collectedAnnotations.length, maxFailures);
         const checkUpdate = {
             ...github.context.repo,
@@ -10440,6 +10444,7 @@ const fs = __importStar(__webpack_require__(747));
                 annotations: [summaryAnnotation, ...collectedAnnotations],
             },
         };
+        core.info(`Updating annotations of run ${checkRunId}`);
         await octokit.checks.update(checkUpdate);
     }
     catch (error) {
