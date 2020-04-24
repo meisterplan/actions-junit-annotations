@@ -2,9 +2,10 @@
   "name": "actions-junit-annotations",
   "version": "1.0.0",
   "description": "Annotate JUnit XML build results on GitHub Actions build",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc index.ts",
+    "lint": "eslint --ext .jsx,.js,.tsx,.ts ."
   },
   "repository": {
     "type": "git",
