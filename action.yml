@@ -7,22 +7,23 @@ inputs:
   access-token:
     description: 'github token'
     required: true
-  path:
-    description: 'glob to junit xml files'
+  projectPath:
+    description: 'Path to server project'
     required: true
-    default: 'target/surefire-reports/*.xml'
-  includeSummary:
-    description: 'include summary annotation'
+    default: 'service/server'
+  junitSubPath:
+    description: 'Glob path to JUnit XML files inside project'
     required: true
-    default: true
-  numFailures:
-    description: 'max number of failed tests to include'
-    require: true
-    default: 10
-  testSrcPath: 
-    description: 'path to test source'
+    default: 'build/test-results/test/*.xml'
+  testSrcSubPath:
+    description: 'Path to test source files inside project'
     required: true
-    default: 'src/test/java/'
+    default: 'src/test/kotlin/'
+  maxFailures:
+    description: 'Maximum amount of failed tests to include'
+    required: true
+    default: '10'
+
 runs:
   using: 'node12'
   main: 'index.js'

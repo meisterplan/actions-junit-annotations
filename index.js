@@ -1,3 +1,4 @@
+"use strict";
 var __assign = (this && this.__assign) || function () {
     __assign = Object.assign || function(t) {
         for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -59,26 +60,26 @@ var __spreadArrays = (this && this.__spreadArrays) || function () {
             r[k] = a[j];
     return r;
 };
-var _this = this;
-var core = require('@actions/core');
-var github = require('@actions/github');
-var glob = require('@actions/glob');
-var parser = require('xml2json');
-var fs = require('fs');
-(function () { return __awaiter(_this, void 0, void 0, function () {
-    var path, includeSummary, numFailures_1, accessToken, testSrcPath_1, globber, numTests, numSkipped, numFailed, numErrored, testDuration, annotations_1, _a, _b, file, data, json, testsuite, _i, _c, testcase, e_1_1, octokit, req, res, check_run_id, annotation_level, annotation, update_req, error_1;
-    var _this = this;
+exports.__esModule = true;
+var core = require("@actions/core");
+var github = require("@actions/github");
+var glob = require("@actions/glob");
+var parser = require("xml2json");
+var fs = require("fs");
+(function () { return __awaiter(void 0, void 0, void 0, function () {
+    var accessToken, projectPath, junitSubPath, testSrcSubPath, maxFailures, testSrcPath, globber, numTests, numSkipped, numFailed, numErrored, testDuration, collectedAnnotations, _a, _b, file, data, json, testsuite, _i, _c, testcase, annotations, klass, path, file_1, line, lines, i, e_1_1, octokit, listForRefRequest, res, checkRunId, annotationLevel, summaryAnnotation, checkUpdate, error_1;
     var e_1, _d;
     return __generator(this, function (_e) {
         switch (_e.label) {
             case 0:
-                _e.trys.push([0, 23, , 24]);
-                path = core.getInput('path');
-                includeSummary = core.getInput('includeSummary');
-                numFailures_1 = core.getInput('numFailures');
+                _e.trys.push([0, 20, , 21]);
                 accessToken = core.getInput('access-token');
-                testSrcPath_1 = core.getInput('testSrcPath');
-                return [4 /*yield*/, glob.create(path, { followSymbolicLinks: false })];
+                projectPath = core.getInput('projectPath');
+                junitSubPath = core.getInput('junitSubPath');
+                testSrcSubPath = core.getInput('testSrcSubPath');
+                maxFailures = Number(core.getInput('maxFailures'));
+                testSrcPath = projectPath + '/' + testSrcSubPath;
+                return [4 /*yield*/, glob.create(projectPath + '/' + junitSubPath, { followSymbolicLinks: false })];
             case 1:
                 globber = _e.sent();
                 numTests = 0;
@@ -86,131 +87,113 @@ var fs = require('fs');
                 numFailed = 0;
                 numErrored = 0;
                 testDuration = 0;
-                annotations_1 = [];
+                collectedAnnotations = [];
                 _e.label = 2;
             case 2:
-                _e.trys.push([2, 14, 15, 20]);
+                _e.trys.push([2, 11, 12, 17]);
                 _a = __asyncValues(globber.globGenerator());
                 _e.label = 3;
             case 3: return [4 /*yield*/, _a.next()];
             case 4:
-                if (!(_b = _e.sent(), !_b.done)) return [3 /*break*/, 13];
+                if (!(_b = _e.sent(), !_b.done)) return [3 /*break*/, 10];
                 file = _b.value;
                 return [4 /*yield*/, fs.promises.readFile(file)];
             case 5:
                 data = _e.sent();
                 json = JSON.parse(parser.toJson(data));
-                if (!json.testsuite) return [3 /*break*/, 12];
+                if (!json.testsuite) return [3 /*break*/, 9];
                 testsuite = json.testsuite;
                 testDuration += Number(testsuite.time);
                 numTests += Number(testsuite.tests);
                 numErrored += Number(testsuite.errors);
                 numFailed += Number(testsuite.failures);
                 numSkipped += Number(testsuite.skipped);
-                testFunction = function (testcase) { return __awaiter(_this, void 0, void 0, function () {
-                    var klass, path_1, file_1, line, lines, i;
-                    return __generator(this, function (_a) {
-                        switch (_a.label) {
-                            case 0:
-                                if (!testcase.failure) return [3 /*break*/, 2];
-                                if (!(annotations_1.length < numFailures_1)) return [3 /*break*/, 2];
-                                klass = testcase.classname.replace(/$.*/g, '').replace(/\./g, '/');
-                                path_1 = "" + testSrcPath_1 + klass + ".java";
-                                return [4 /*yield*/, fs.promises.readFile(path_1, { encoding: 'utf-8' })];
-                            case 1:
-                                file_1 = _a.sent();
-                                line = 0;
-                                lines = file_1.split('\n');
-                                for (i = 0; i < lines.length; i++) {
-                                    if (lines[i].indexOf(testcase.name) >= 0) {
-                                        line = i;
-                                        break;
-                                    }
-                                }
-                                annotations_1.push({
-                                    path: path_1,
-                                    start_line: line,
-                                    end_line: line,
-                                    start_column: 0,
-                                    end_column: 0,
-                                    annotation_level: 'failure',
-                                    message: "Junit test " + testcase.name + " failed " + testcase.failure.message
-                                });
-                                _a.label = 2;
-                            case 2: return [2 /*return*/];
-                        }
-                    });
-                }); };
-                if (!Array.isArray(testsuite.testcase)) return [3 /*break*/, 10];
+                if (!Array.isArray(testsuite.testcase)) {
+                    testsuite.testcase = [testsuite.testcase];
+                }
+                if (!Array.isArray(testsuite.testcase)) return [3 /*break*/, 9];
                 _i = 0, _c = testsuite.testcase;
                 _e.label = 6;
             case 6:
                 if (!(_i < _c.length)) return [3 /*break*/, 9];
                 testcase = _c[_i];
-                return [4 /*yield*/, testFunction(testcase)];
+                if (!testcase.failure) return [3 /*break*/, 8];
+                annotations = [];
+                klass = testcase.classname.replace(/$.*/g, '').replace(/\./g, '/');
+                path = "" + testSrcPath + klass + ".java";
+                return [4 /*yield*/, fs.promises.readFile(path, { encoding: 'utf-8' })];
             case 7:
-                _e.sent();
+                file_1 = _e.sent();
+                line = 0;
+                lines = file_1.split('\n');
+                for (i = 0; i < lines.length; i++) {
+                    if (lines[i].indexOf(testcase.name) >= 0) {
+                        line = i;
+                        break;
+                    }
+                }
+                annotations.push({
+                    path: path,
+                    start_line: line,
+                    end_line: line,
+                    start_column: 0,
+                    end_column: 0,
+                    annotation_level: 'failure',
+                    message: "Junit test " + testcase.name + " failed " + testcase.failure.message
+                });
+                collectedAnnotations = collectedAnnotations.concat(annotations);
                 _e.label = 8;
             case 8:
                 _i++;
                 return [3 /*break*/, 6];
-            case 9: return [3 /*break*/, 12];
-            case 10: 
-            //single test
-            return [4 /*yield*/, testFunction(testsuite.testcase)];
+            case 9: return [3 /*break*/, 3];
+            case 10: return [3 /*break*/, 17];
             case 11:
-                //single test
-                _e.sent();
-                _e.label = 12;
-            case 12: return [3 /*break*/, 3];
-            case 13: return [3 /*break*/, 20];
-            case 14:
                 e_1_1 = _e.sent();
                 e_1 = { error: e_1_1 };
-                return [3 /*break*/, 20];
-            case 15:
-                _e.trys.push([15, , 18, 19]);
-                if (!(_b && !_b.done && (_d = _a["return"]))) return [3 /*break*/, 17];
+                return [3 /*break*/, 17];
+            case 12:
+                _e.trys.push([12, , 15, 16]);
+                if (!(_b && !_b.done && (_d = _a["return"]))) return [3 /*break*/, 14];
                 return [4 /*yield*/, _d.call(_a)];
-            case 16:
+            case 13:
                 _e.sent();
-                _e.label = 17;
-            case 17: return [3 /*break*/, 19];
-            case 18:
+                _e.label = 14;
+            case 14: return [3 /*break*/, 16];
+            case 15:
                 if (e_1) throw e_1.error;
                 return [7 /*endfinally*/];
-            case 19: return [7 /*endfinally*/];
-            case 20:
+            case 16: return [7 /*endfinally*/];
+            case 17:
                 octokit = new github.GitHub(accessToken);
-                req = __assign(__assign({}, github.context.repo), { ref: github.context.sha });
-                return [4 /*yield*/, octokit.checks.listForRef(req)];
-            case 21:
+                listForRefRequest = __assign(__assign({}, github.context.repo), { ref: github.context.sha });
+                return [4 /*yield*/, octokit.checks.listForRef(listForRefRequest)];
+            case 18:
                 res = _e.sent();
-                check_run_id = res.data.check_runs.filter(function (check) { return check.name === 'build'; })[0].id;
-                annotation_level = numFailed + numErrored > 0 ? 'failure' : 'notice';
-                annotation = {
-                    path: 'test',
+                checkRunId = res.data.check_runs.filter(function (check) { return check.name === 'build'; })[0].id;
+                annotationLevel = numFailed + numErrored > 0 ? 'failure' : 'notice';
+                summaryAnnotation = {
+                    path: testSrcPath,
                     start_line: 0,
                     end_line: 0,
-                    start_column: 0,
-                    end_column: 0,
-                    annotation_level: annotation_level,
+                    annotation_level: annotationLevel,
                     message: "Junit Results ran " + numTests + " in " + testDuration + " seconds " + numErrored + " Errored, " + numFailed + " Failed, " + numSkipped + " Skipped"
                 };
-                update_req = __assign(__assign({}, github.context.repo), { check_run_id: check_run_id, output: {
+                collectedAnnotations.length = Math.min(collectedAnnotations.length, maxFailures);
+                checkUpdate = __assign(__assign({}, github.context.repo), { check_run_id: checkRunId, output: {
                         title: 'Junit Results',
                         summary: "Num passed etc",
-                        annotations: __spreadArrays([annotation], annotations_1)
+                        annotations: __spreadArrays([summaryAnnotation], collectedAnnotations)
                     } });
-                return [4 /*yield*/, octokit.checks.update(update_req)];
-            case 22:
+                return [4 /*yield*/, octokit.checks.update(checkUpdate)];
+            case 19:
                 _e.sent();
-                return [3 /*break*/, 24];
-            case 23:
+                return [3 /*break*/, 21];
+            case 20:
                 error_1 = _e.sent();
                 core.setFailed(error_1.message);
-                return [3 /*break*/, 24];
-            case 24: return [2 /*return*/];
+                return [3 /*break*/, 21];
+            case 21: return [2 /*return*/];
         }
     });
 }); })();

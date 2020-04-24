@@ -1,17 +1,22 @@
-const core = require('@actions/core');
-const github = require('@actions/github');
-const glob = require('@actions/glob');
-const parser = require('xml2json');
-const fs = require('fs');
+import * as core from '@actions/core';
+import * as github from '@actions/github';
+import * as glob from '@actions/glob';
+import * as parser from 'xml2json';
+import * as fs from 'fs';
+import { Globber } from '@actions/glob';
+import { Octokit } from '@octokit/rest';
 
 (async () => {
     try {
-        const path = core.getInput('path');
-        const includeSummary = core.getInput('includeSummary');
-        const numFailures = core.getInput('numFailures');
         const accessToken = core.getInput('access-token');
-        const testSrcPath = core.getInput('testSrcPath');
-        const globber = await glob.create(path, { followSymbolicLinks: false });
+
+        const projectPath = core.getInput('projectPath');
+        const junitSubPath = core.getInput('junitSubPath');
+        const testSrcSubPath = core.getInput('testSrcSubPath');
+        const maxFailures = Number(core.getInput('maxFailures'));
+
+        const testSrcPath = projectPath + '/' + testSrcSubPath;
+        const globber: Globber = await glob.create(projectPath + '/' + junitSubPath, { followSymbolicLinks: false });
 
         let numTests = 0;
         let numSkipped = 0;
@@ -19,7 +24,7 @@ const fs = require('fs');
         let numErrored = 0;
         let testDuration = 0;
 
-        const annotations = [];
+        let collectedAnnotations: Octokit.ChecksUpdateParamsOutputAnnotations[] = [];
 
         for await (const file of globber.globGenerator()) {
             const data = await fs.promises.readFile(file);
@@ -31,9 +36,15 @@ const fs = require('fs');
                 numErrored += Number(testsuite.errors);
                 numFailed += Number(testsuite.failures);
                 numSkipped += Number(testsuite.skipped);
-                testFunction = async (testcase) => {
-                    if (testcase.failure) {
-                        if (annotations.length < numFailures) {
+
+                if (!Array.isArray(testsuite.testcase)) {
+                    testsuite.testcase = [testsuite.testcase];
+                }
+
+                if (Array.isArray(testsuite.testcase)) {
+                    for (const testcase of testsuite.testcase) {
+                        if (testcase.failure) {
+                            const annotations: Octokit.ChecksUpdateParamsOutputAnnotations[] = [];
                             const klass = testcase.classname.replace(/$.*/g, '').replace(/\./g, '/');
                             const path = `${testSrcPath}${klass}.java`;
 
@@ -47,6 +58,7 @@ const fs = require('fs');
                                     break;
                                 }
                             }
+
                             annotations.push({
                                 path: path,
                                 start_line: line,
@@ -56,61 +68,43 @@ const fs = require('fs');
                                 annotation_level: 'failure',
                                 message: `Junit test ${testcase.name} failed ${testcase.failure.message}`,
                             });
-                        }
-                        //add
-                    }
-                };
 
-                if (Array.isArray(testsuite.testcase)) {
-                    for (const testcase of testsuite.testcase) {
-                        await testFunction(testcase);
+                            collectedAnnotations = collectedAnnotations.concat(annotations);
+                        }
                     }
-                } else {
-                    //single test
-                    await testFunction(testsuite.testcase);
                 }
             }
         }
 
         const octokit = new github.GitHub(accessToken);
-        const req = {
+        const listForRefRequest = {
             ...github.context.repo,
             ref: github.context.sha,
         };
-        const res = await octokit.checks.listForRef(req);
+        const res = await octokit.checks.listForRef(listForRefRequest);
 
-        const check_run_id = res.data.check_runs.filter((check) => check.name === 'build')[0].id;
+        const checkRunId = res.data.check_runs.filter((check) => check.name === 'build')[0].id;
 
-        const annotation_level = numFailed + numErrored > 0 ? 'failure' : 'notice';
-        const annotation = {
-            path: 'test',
+        const annotationLevel = numFailed + numErrored > 0 ? 'failure' : 'notice';
+        const summaryAnnotation: Octokit.ChecksUpdateParamsOutputAnnotations = {
+            path: testSrcPath,
             start_line: 0,
             end_line: 0,
-            start_column: 0,
-            end_column: 0,
-            annotation_level,
+            annotation_level: annotationLevel,
             message: `Junit Results ran ${numTests} in ${testDuration} seconds ${numErrored} Errored, ${numFailed} Failed, ${numSkipped} Skipped`,
         };
-        // const annotation = {
-        //   path: 'test',
-        //   start_line: 1,
-        //   end_line: 1,
-        //   start_column: 2,
-        //   end_column: 2,
-        //   annotation_level,
-        //   message: `[500] failure`,
-        // };
 
-        const update_req = {
+        collectedAnnotations.length = Math.min(collectedAnnotations.length, maxFailures);
+        const checkUpdate = {
             ...github.context.repo,
-            check_run_id,
+            check_run_id: checkRunId,
             output: {
                 title: 'Junit Results',
                 summary: `Num passed etc`,
-                annotations: [annotation, ...annotations],
+                annotations: [summaryAnnotation, ...collectedAnnotations],
             },
         };
-        await octokit.checks.update(update_req);
+        await octokit.checks.update(checkUpdate);
     } catch (error) {
         core.setFailed(error.message);
     }
