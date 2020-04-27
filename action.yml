@@ -19,14 +19,14 @@ inputs:
     description: 'Path to test source files inside project'
     required: true
     default: 'src/test/kotlin/'
-  annotateCheckName:
-    description: 'Partly matching name of check run to annotate'
-    required: true
-    default: 'test-server'
   maxFailures:
     description: 'Maximum amount of failed tests to include'
     required: true
     default: '10'
+  jobName:
+    description: 'Partial match of job name to annotate in this workflow'
+    required: true
+    default: 'test-server'
 
 runs:
   using: 'node12'

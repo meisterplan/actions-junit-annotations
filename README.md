@@ -14,4 +14,4 @@ Annotate JUnit XML build results on GitHub Actions build
 - `junitSubPath`: Glob path to JUnit XML files inside project, default `build/test-results/test/*.xml`
 - `testSrcSubPath`: Path to test source files inside project, default `src/test/kotlin/`
 - `maxFailures`: Maximum amount of failed tests to include, default 10
-- `annotateCheckName`: Part of the check run name that should be annotated, default `test-server`
+- `jobName`: Partial match of job name to annotate in this workflow, default `test-server`

@@ -10364,7 +10364,7 @@ const fs = __importStar(__webpack_require__(747));
         const junitSubPath = core.getInput('junitSubPath');
         const testSrcSubPath = core.getInput('testSrcSubPath');
         const maxFailures = Number(core.getInput('maxFailures'));
-        const annotateCheckName = core.getInput('annotateCheckName');
+        const jobName = core.getInput('jobName');
         const testSrcPath = projectPath + '/' + testSrcSubPath;
         const globber = await glob.create(projectPath + '/' + junitSubPath, { followSymbolicLinks: false });
         let numTests = 0;
@@ -10415,8 +10415,8 @@ const fs = __importStar(__webpack_require__(747));
                             start_line: testFileLine,
                             end_line: testFileLine,
                             annotation_level: 'failure',
-                            message: `JUnit ${testsuite.name}::${testcase.name} failed`,
-                            raw_details: testcase.failure.message,
+                            message: `${testsuite.name}::${testcase.name} failed: ${testcase.failure.message}`,
+                            raw_details: testcase.failure.text,
                         });
                         collectedAnnotations = collectedAnnotations.concat(annotations);
                     }
@@ -10424,7 +10424,7 @@ const fs = __importStar(__webpack_require__(747));
             }
         }
         const annotationLevel = numFailed + numErrored > 0 ? 'failure' : 'notice';
-        const summaryMessage = `JUnit Results for ${numTests} tests in ${testDuration} seconds: ${numErrored} error(s), ${numFailed} fail(s), ${numSkipped} skip(s)`;
+        const summaryMessage = `JUnit Results for ${numTests} tests in ${testDuration.toFixed(1)} seconds: ${numErrored} error(s), ${numFailed} fail(s), ${numSkipped} skip(s)`;
         const summaryAnnotation = {
             path: testSrcPath,
             start_line: 0,
@@ -10434,29 +10434,48 @@ const fs = __importStar(__webpack_require__(747));
         };
         core.info(summaryMessage);
         const octokit = new github.GitHub(accessToken);
-        const listForRefRequest = {
+        // identify check run to annotate
+        let checkRunId = -1;
+        const getWorkflowRunParams = {
             ...github.context.repo,
-            ref: github.context.sha,
+            run_id: Number(process.env['GITHUB_RUN_ID']),
         };
-        const checkRunsResponse = await octokit.checks.listForRef(listForRefRequest);
-        core.info(`Available check runs: ${checkRunsResponse.data.check_runs.join(',')}`);
-        const checkRun = checkRunsResponse.data.check_runs.find((checkRun) => checkRun.name.includes(annotateCheckName));
-        if (checkRun == undefined) {
-            core.error(`Did not find a check run for this sha that contains '${annotateCheckName}'.`);
-            return;
+        core.info(`Getting workflow run for ${getWorkflowRunParams.run_id}...`);
+        const getWorkflowRun = await octokit.actions.getWorkflowRun(getWorkflowRunParams);
+        // great API
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const checkSuiteIdArray = getWorkflowRun.data.check_suite_url.match(/\d+/g);
+        if (checkSuiteIdArray && checkSuiteIdArray.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            core.setFailed(`Found no checksuite id in URL ${getWorkflowRun.data.check_suite_url}`);
+        }
+        const listCheckRunsParams = {
+            ...github.context.repo,
+            check_suite_id: checkSuiteIdArray[checkSuiteIdArray.length - 1],
+        };
+        core.info(`Listing check runs for suite ${listCheckRunsParams.check_suite_id}...`);
+        const listCheckRuns = await octokit.checks.listForSuite(listCheckRunsParams);
+        const checkRun = listCheckRuns.data.check_runs.find((run) => run.name.includes(jobName));
+        if (checkRun) {
+            checkRunId = checkRun.id;
+        }
+        if (checkRunId == -1) {
+            core.setFailed(`Found no job to annotate with name ${jobName} in current workflow...`);
+        }
+        else {
+            core.info(`Updating check run ${checkRunId}`);
         }
         collectedAnnotations.length = Math.min(collectedAnnotations.length, maxFailures);
-        const checkUpdate = {
+        const checkCreateParams = {
             ...github.context.repo,
-            check_run_id: checkRun.id,
+            check_run_id: checkRunId,
             output: {
                 title: 'JUnit Results',
                 summary: summaryMessage,
                 annotations: [summaryAnnotation, ...collectedAnnotations],
             },
         };
-        core.info(`Updating annotations of run ${checkRun.id}`);
-        await octokit.checks.update(checkUpdate);
+        await octokit.checks.update(checkCreateParams);
     }
     catch (error) {
         core.setFailed(error.message);
