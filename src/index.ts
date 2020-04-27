@@ -5,11 +5,11 @@ import * as parser from 'xml2json';
 import * as fs from 'fs';
 import { Globber } from '@actions/glob';
 import { Octokit } from '@octokit/rest';
-import * as path from "path";
+import * as path from 'path';
 
 (async () => {
     try {
-        const accessToken = core.getInput('access-token');
+        const githubToken = core.getInput('githubToken');
 
         const projectPath = core.getInput('projectPath');
         const junitSubPath = core.getInput('junitSubPath');
@@ -103,7 +103,7 @@ import * as path from "path";
         };
         core.info(summaryMessage);
 
-        const octokit = new github.GitHub(accessToken);
+        const octokit = new github.GitHub(githubToken);
 
         // identify check run to annotate
         let checkRunId = -1;

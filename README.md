@@ -6,7 +6,7 @@ Annotate JUnit XML build results on GitHub Actions build
     - uses: meisterplan/actions-junit-annotations@master
       if: always()
       with:
-        access-token: ${{ secrets.GITHUB_TOKEN }}
+        githubToken: ${{ secrets.GITHUB_TOKEN }}
 ``` 
 
 ### Optional parameters

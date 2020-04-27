@@ -4,7 +4,7 @@ branding:
   icon: 'box'  
   color: 'green'
 inputs:
-  access-token:
+  githubToken:
     description: 'github token'
     required: true
   projectPath:

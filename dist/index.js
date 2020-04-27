@@ -10360,7 +10360,7 @@ const fs = __importStar(__webpack_require__(747));
 const path = __importStar(__webpack_require__(622));
 (async () => {
     try {
-        const accessToken = core.getInput('access-token');
+        const githubToken = core.getInput('githubToken');
         const projectPath = core.getInput('projectPath');
         const junitSubPath = core.getInput('junitSubPath');
         const testSrcSubPath = core.getInput('testSrcSubPath');
@@ -10437,7 +10437,7 @@ const path = __importStar(__webpack_require__(622));
             message: summaryMessage,
         };
         core.info(summaryMessage);
-        const octokit = new github.GitHub(accessToken);
+        const octokit = new github.GitHub(githubToken);
         // identify check run to annotate
         let checkRunId = -1;
         const getWorkflowRunParams = {
