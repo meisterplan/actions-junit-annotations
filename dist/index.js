@@ -10357,6 +10357,7 @@ const github = __importStar(__webpack_require__(469));
 const glob = __importStar(__webpack_require__(281));
 const parser = __importStar(__webpack_require__(120));
 const fs = __importStar(__webpack_require__(747));
+const path = __importStar(__webpack_require__(622));
 (async () => {
     try {
         const accessToken = core.getInput('access-token');
@@ -10406,17 +10407,20 @@ const fs = __importStar(__webpack_require__(747));
                             const testPosition = testFileContents.indexOf(testName);
                             if (testPosition >= 0) {
                                 const contentBefore = testFileContents.substring(0, testPosition);
-                                const contentBeforeWithoutNewLines = contentBefore.replace('/n', '');
+                                const contentBeforeWithoutNewLines = contentBefore.replace(/\n/g, '');
                                 testFileLine = 1 + (contentBefore.length - contentBeforeWithoutNewLines.length);
                             }
                         }
+                        else {
+                            core.info(`Did not find/Found too many referenced file(s): ${testFileNameSuspect}`);
+                        }
                         annotations.push({
-                            path: testFilePath,
+                            path: path.relative(process.cwd(), testFilePath),
                             start_line: testFileLine,
                             end_line: testFileLine,
                             annotation_level: 'failure',
                             message: `${testsuite.name}::${testcase.name} failed: ${testcase.failure.message}`,
-                            raw_details: testcase.failure.text,
+                            raw_details: testcase.failure['$t'],
                         });
                         collectedAnnotations = collectedAnnotations.concat(annotations);
                     }
@@ -10440,20 +10444,21 @@ const fs = __importStar(__webpack_require__(747));
             ...github.context.repo,
             run_id: Number(process.env['GITHUB_RUN_ID']),
         };
-        core.info(`Getting workflow run for ${getWorkflowRunParams.run_id}...`);
+        core.debug(`Getting workflow run for ${getWorkflowRunParams.run_id}...`);
         const getWorkflowRun = await octokit.actions.getWorkflowRun(getWorkflowRunParams);
-        // great API
+        // great API, the value `check_suite_id` is not set in the response...
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const checkSuiteIdArray = getWorkflowRun.data.check_suite_url.match(/\d+/g);
-        if (checkSuiteIdArray && checkSuiteIdArray.length > 0) {
+        if (checkSuiteIdArray && checkSuiteIdArray.length == 0) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             core.setFailed(`Found no checksuite id in URL ${getWorkflowRun.data.check_suite_url}`);
+            return;
         }
         const listCheckRunsParams = {
             ...github.context.repo,
             check_suite_id: checkSuiteIdArray[checkSuiteIdArray.length - 1],
         };
-        core.info(`Listing check runs for suite ${listCheckRunsParams.check_suite_id}...`);
+        core.debug(`Listing check runs for suite ${listCheckRunsParams.check_suite_id}...`);
         const listCheckRuns = await octokit.checks.listForSuite(listCheckRunsParams);
         const checkRun = listCheckRuns.data.check_runs.find((run) => run.name.includes(jobName));
         if (checkRun) {
@@ -10461,6 +10466,7 @@ const fs = __importStar(__webpack_require__(747));
         }
         if (checkRunId == -1) {
             core.setFailed(`Found no job to annotate with name ${jobName} in current workflow...`);
+            return;
         }
         else {
             core.info(`Updating check run ${checkRunId}`);

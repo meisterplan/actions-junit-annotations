@@ -5,6 +5,7 @@ import * as parser from 'xml2json';
 import * as fs from 'fs';
 import { Globber } from '@actions/glob';
 import { Octokit } from '@octokit/rest';
+import * as path from "path";
 
 (async () => {
     try {
@@ -66,18 +67,21 @@ import { Octokit } from '@octokit/rest';
                             const testPosition = testFileContents.indexOf(testName);
                             if (testPosition >= 0) {
                                 const contentBefore = testFileContents.substring(0, testPosition);
-                                const contentBeforeWithoutNewLines = contentBefore.replace('/n', '');
+                                const contentBeforeWithoutNewLines = contentBefore.replace(/\n/g, '');
+
                                 testFileLine = 1 + (contentBefore.length - contentBeforeWithoutNewLines.length);
                             }
+                        } else {
+                            core.info(`Did not find/Found too many referenced file(s): ${testFileNameSuspect}`);
                         }
 
                         annotations.push({
-                            path: testFilePath,
+                            path: path.relative(process.cwd(), testFilePath),
                             start_line: testFileLine,
                             end_line: testFileLine,
                             annotation_level: 'failure',
                             message: `${testsuite.name}::${testcase.name} failed: ${testcase.failure.message}`,
-                            raw_details: testcase.failure.text,
+                            raw_details: testcase.failure['$t'],
                         });
 
                         collectedAnnotations = collectedAnnotations.concat(annotations);
@@ -107,20 +111,21 @@ import { Octokit } from '@octokit/rest';
             ...github.context.repo,
             run_id: Number(process.env['GITHUB_RUN_ID']), // you'd think this should be in the context variable
         };
-        core.info(`Getting workflow run for ${getWorkflowRunParams.run_id}...`);
+        core.debug(`Getting workflow run for ${getWorkflowRunParams.run_id}...`);
         const getWorkflowRun = await octokit.actions.getWorkflowRun(getWorkflowRunParams);
         // great API, the value `check_suite_id` is not set in the response...
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const checkSuiteIdArray = (getWorkflowRun.data as any).check_suite_url.match(/\d+/g);
-        if (checkSuiteIdArray && checkSuiteIdArray.length > 0) {
+        if (checkSuiteIdArray && checkSuiteIdArray.length == 0) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             core.setFailed(`Found no checksuite id in URL ${(getWorkflowRun.data as any).check_suite_url}`);
+            return;
         }
         const listCheckRunsParams: Octokit.ChecksListForSuiteParams = {
             ...github.context.repo,
             check_suite_id: checkSuiteIdArray[checkSuiteIdArray.length - 1],
         };
-        core.info(`Listing check runs for suite ${listCheckRunsParams.check_suite_id}...`);
+        core.debug(`Listing check runs for suite ${listCheckRunsParams.check_suite_id}...`);
         const listCheckRuns = await octokit.checks.listForSuite(listCheckRunsParams);
         const checkRun = listCheckRuns.data.check_runs.find((run) => run.name.includes(jobName));
         if (checkRun) {
@@ -129,6 +134,7 @@ import { Octokit } from '@octokit/rest';
 
         if (checkRunId == -1) {
             core.setFailed(`Found no job to annotate with name ${jobName} in current workflow...`);
+            return;
         } else {
             core.info(`Updating check run ${checkRunId}`);
         }
