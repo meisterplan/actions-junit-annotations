@@ -42,7 +42,9 @@ import * as path from 'path';
                 numFailed += Number(testsuite.failures);
                 numSkipped += Number(testsuite.skipped);
 
-                if (!Array.isArray(testsuite.testcase)) {
+                if(!testsuite.testcase) {
+                    testsuite.testcase = [];
+                } else if (!Array.isArray(testsuite.testcase)) {
                     testsuite.testcase = [testsuite.testcase];
                 }
 
